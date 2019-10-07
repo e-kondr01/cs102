@@ -16,7 +16,7 @@ def encrypt_vigenere(plaintext, keyword):
         if (ord(char) + ord(keyword.lower()[i]) - 97 > 122 or
                 char.lower() != char and
                 ord(char) + ord(keyword.lower()[i]) - 97 > 92):
-            ciphertext +=  chr(ord(char) + ord(keyword.lower()[i]) - 97 - 26)
+            ciphertext += chr(ord(char) + ord(keyword.lower()[i]) - 97 - 26)
         else:
             ciphertext += chr(ord(char) + ord(keyword.lower()[i]) - 97)
         i += 1
@@ -36,6 +36,17 @@ def decrypt_vigenere(ciphertext, keyword):
     >>> decrypt_vigenere("LXFOPVEFRNHR", "LEMON")
     'ATTACKATDAWN'
     """
-    # PUT YOUR CODE HERE
+    plaintext = ''
+    i = 0
+    KeywordLength = len(keyword)
+    for char in ciphertext:
+        if (ord(char) - ord(keyword.lower()[i]) + 97 < 65 or
+                char.lower() == char and
+                ord(char) + ord(keyword.lower()[i]) + 97 < 97):
+            plaintext += chr(ord(char) - ord(keyword.lower()[i]) + 97 + 26)
+        else:
+            plaintext += chr(ord(char) - ord(keyword.lower()[i]) + 97)
+        i += 1
+        if i == KeywordLength:
+            i = 0
     return plaintext
-print(encrypt_vigenere(input(), input()))

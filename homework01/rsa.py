@@ -1,4 +1,5 @@
 import random
+from math import sqrt
 
 
 def is_prime(n):
@@ -12,8 +13,15 @@ def is_prime(n):
     >>> is_prime(8)
     False
     """
-    # PUT YOUR CODE HERE
-    pass
+    res = True
+    if n % 2 == 0 or n < 2 or n // 1 != n:
+        res = False
+    else:
+        for i in range(3, sqrt(n), 2):
+            if n % i == 0:
+                res = False
+                break
+    return res
 
 
 def gcd(a, b):

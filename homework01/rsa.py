@@ -14,10 +14,10 @@ def is_prime(n):
     False
     """
     res = True
-    if n % 2 == 0 or n < 2 or n // 1 != n:
+    if n % 2 == 0 and n != 2 or n < 2 or n // 1 != n:
         res = False
     else:
-        for i in range(3, sqrt(n), 2):
+        for i in range(3, int(sqrt(n))+1, 2):
             if n % i == 0:
                 res = False
                 break
@@ -33,13 +33,12 @@ def gcd(a, b):
     >>> gcd(3, 7)
     1
     """
-    # PUT YOUR CODE HERE
     while a != 0 and b != 0:
         if a > b:
             a %= b
         else:
             b %= a
-return a + b
+    return a + b
 
 
 def multiplicative_inverse(e, phi):
@@ -50,8 +49,25 @@ def multiplicative_inverse(e, phi):
     >>> multiplicative_inverse(7, 40)
     23
     """
-    # PUT YOUR CODE HERE
-    pass
+    m0 = phi
+    y = 0
+    x = 1
+    if (phi == 1):
+        return 0
+    while (e > 1):
+        # q is quotient
+        q = e // phi
+        t = phi
+        phi = e % phi
+        e = t
+        t = y
+        # Update x and y
+        y = x - q * y
+        x = t
+    # Make x positive
+    if (x < 0):
+        x += m0
+    return x
 
 
 def generate_keypair(p, q):

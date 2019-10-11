@@ -13,15 +13,20 @@ def encrypt_vigenere(plaintext, keyword):
     i = 0
     KeywordLength = len(keyword)
     for char in plaintext:
-        if (ord(char) + ord(keyword.lower()[i]) - 97 > 122 or
-                char.lower() != char and
-                ord(char) + ord(keyword.lower()[i]) - 97 > 92):
-            ciphertext += chr(ord(char) + ord(keyword.lower()[i]) - 97 - 26)
+        if 'a' <= char <= 'z' or 'A' <= char <= 'Z':
+            shift = ord(keyword.lower()[i]) - 97
+            if ord(char) + shift > ord('z'):
+                ciphertext += chr(ord(char) + shift - 26)
+            elif ('A' <= char <= 'Z' and
+                    ord(char) + shift > ord('Z')):
+                ciphertext += chr(ord(char) + shift - 26)
+            else:
+                ciphertext += chr(ord(char) + shift)
+            i += 1
+            if i == KeywordLength:
+                i = 0
         else:
-            ciphertext += chr(ord(char) + ord(keyword.lower()[i]) - 97)
-        i += 1
-        if i == KeywordLength:
-            i = 0
+            ciphertext += char
     return ciphertext
 
 
@@ -40,13 +45,18 @@ def decrypt_vigenere(ciphertext, keyword):
     i = 0
     KeywordLength = len(keyword)
     for char in ciphertext:
-        if (ord(char) - ord(keyword.lower()[i]) + 97 < 65 or
-                char.lower() == char and
-                ord(char) + ord(keyword.lower()[i]) + 97 < 97):
-            plaintext += chr(ord(char) - ord(keyword.lower()[i]) + 97 + 26)
+        if 'a' <= char <= 'z' or 'A' <= char <= 'Z':
+            shift = 97 - ord(keyword.lower()[i])
+            if ord(char) + shift < ord('A'):
+                plaintext += chr(ord(char) + shift + 26)
+            elif ('a' <= char <= 'z' and
+                    ord(char) + shift < ord('a')):
+                plaintext += chr(ord(char) + shift + 26)
+            else:
+                plaintext += chr(ord(char) + shift)
+            i += 1
+            if i == KeywordLength:
+                i = 0
         else:
-            plaintext += chr(ord(char) - ord(keyword.lower()[i]) + 97)
-        i += 1
-        if i == KeywordLength:
-            i = 0
+            plaintext += char
     return plaintext

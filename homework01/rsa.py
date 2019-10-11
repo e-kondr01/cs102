@@ -13,15 +13,13 @@ def is_prime(n):
     >>> is_prime(8)
     False
     """
-    res = True
     if n % 2 == 0 and n != 2 or n < 2 or n // 1 != n:
-        res = False
+        return False
     else:
         for i in range(3, int(sqrt(n))+1, 2):
             if n % i == 0:
-                res = False
-                break
-    return res
+                return False
+    return True
 
 
 def gcd(a, b):

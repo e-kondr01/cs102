@@ -1,0 +1,3 @@
+[submodule "pybook-assignments"]
+	path = pybook-assignments
+	url = https://github.com/Dementiy/pybook-assignments.git

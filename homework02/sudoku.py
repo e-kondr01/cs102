@@ -1,3 +1,4 @@
+import random
 from typing import Tuple, List, Set, Optional
 
 
@@ -168,8 +169,6 @@ def check_solution(solution: List[List[str]]) -> bool:
     return True
     
 
-
-
 def generate_sudoku(N: int) -> List[List[str]]:
     """ Генерация судоку заполненного на N элементов
 
@@ -192,7 +191,22 @@ def generate_sudoku(N: int) -> List[List[str]]:
     >>> check_solution(solution)
     True
     """
-    pass
+    grid = [['.'] * 9 for _ in range(9)]
+    if N < 0:
+        N = 0
+    elif N > 81:
+        N = 81
+    while N:
+        row = random.randint(0, 8)
+        col = random.randint(0, 8)
+        pos = (row, col)
+        if grid[row][col] == '.':
+            num = str(random.randint(1, 9))
+            if (num not in get_block(grid, pos) and num not in get_row(grid, pos) and
+                    num not in get_col(grid, pos)):
+                grid[row][col] = num
+                N -= 1
+    return grid
 
 
 if __name__ == '__main__':

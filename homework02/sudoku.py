@@ -141,13 +141,13 @@ def solve(grid: List[List[str]]) -> Optional[List[List[str]]]:
     [['5', '3', '4', '6', '7', '8', '9', '1', '2'], ['6', '7', '2', '1', '9', '5', '3', '4', '8'], ['1', '9', '8', '3', '4', '2', '5', '6', '7'], ['8', '5', '9', '7', '6', '1', '4', '2', '3'], ['4', '2', '6', '8', '5', '3', '7', '9', '1'], ['7', '1', '3', '9', '2', '4', '8', '5', '6'], ['9', '6', '1', '5', '3', '7', '2', '8', '4'], ['2', '8', '7', '4', '1', '9', '6', '3', '5'], ['3', '4', '5', '2', '8', '6', '1', '7', '9']]
     """
     pos = find_empty_positions(grid)
-    if pos == None:
-       return grid
+    if pos is None:
+        return grid
     row, col = pos
     for value in find_possible_values(grid, pos):
         grid[row][col] = value
         solution = solve(grid)
-        if solution != None:
+        if solution:
             return solution
     grid[row][col] = '.'
     return None
@@ -157,17 +157,17 @@ def check_solution(solution: List[List[str]]) -> bool:
     """ Если решение solution верно, то вернуть True, в противном случае False """
     # TODO: Add doctests with bad puzzles
     for row in range(len(solution)):
-        if set(get_row(solution, (row, 0))) != {'1', '2', '3', '4', '5', '6', '7', '8', '9'}:
+        if set(get_row(solution, (row, 0))) != set('123456789'):
             return False
     for col in range(len(solution)):
-        if set(get_col(solution, (0, col))) != {'1', '2', '3', '4', '5', '6', '7', '8', '9'}:
+        if set(get_col(solution, (0, col))) != set('123456789'):
             return False
     for row in (0, 3, 6):
         for col in (0, 3, 6):
-            if set(get_block(solution, (row, col))) != {'1', '2', '3', '4', '5', '6', '7', '8', '9'}:
+            if set(get_block(solution, (row, col))) != set('123456789'):
                 return False
     return True
-    
+   
 
 def generate_sudoku(N: int) -> List[List[str]]:
     """ Генерация судоку заполненного на N элементов
@@ -191,21 +191,14 @@ def generate_sudoku(N: int) -> List[List[str]]:
     >>> check_solution(solution)
     True
     """
-    grid = [['.'] * 9 for _ in range(9)]
-    if N < 0:
-        N = 0
-    elif N > 81:
-        N = 81
+    grid = solve([['.'] * 9 for _ in range(9)])
+    N = 81 - min(81, max(0, N))
     while N:
         row = random.randint(0, 8)
         col = random.randint(0, 8)
-        pos = (row, col)
-        if grid[row][col] == '.':
-            num = str(random.randint(1, 9))
-            if (num not in get_block(grid, pos) and num not in get_row(grid, pos) and
-                    num not in get_col(grid, pos)):
-                grid[row][col] = num
-                N -= 1
+        if grid[row][col] != '.':
+            grid[row][col] = '.'
+            N -= 1
     return grid
 
 

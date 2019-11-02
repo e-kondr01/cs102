@@ -1,6 +1,7 @@
 import pygame
 import random
 
+from pprint import pprint as pp
 from pygame.locals import *
 from typing import List, Tuple
 
@@ -81,7 +82,10 @@ class GameOfLife:
         out : Grid
             Матрица клеток размером `cell_height` х `cell_width`.
         """
-        pass
+        if randomize == True:
+            return [[random.randint(0, 1) for i in range(self.cell_width)] for _ in range(self.cell_height)]
+        else:
+            return [[0] * self.cell_width for _ in range(self.cell_height)]
 
     def draw_grid(self) -> None:
         """
@@ -119,3 +123,8 @@ class GameOfLife:
             Новое поколение клеток.
         """
         pass
+
+
+game = GameOfLife(320, 240, 40)
+grid = game.create_grid(randomize=True)
+pp(grid)

@@ -115,14 +115,14 @@ class TestGameOfLife(unittest.TestCase):
         game.step()
         self.assertEqual(game.prev_generation, self.grid)
 
-    def test_is_max_generations_exceed(self):
+    def test_is_max_generations_exceeded(self):
         max_generations = 4
         game = GameOfLife((self.rows, self.cols), max_generations=max_generations)
         game.curr_generation = self.grid
         for _ in range(max_generations-1):
             game.step()
-        self.assertEqual(game.n_generation, max_generations)
-        self.assertTrue(game.is_max_generations_exceed)
+        self.assertEqual(game.generations, max_generations)
+        self.assertTrue(game.is_max_generations_exceeded)
 
     def test_is_changing(self):
         game = GameOfLife((self.rows, self.cols))

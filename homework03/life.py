@@ -132,4 +132,4 @@ class GameOfLife:
 
 if __name__ == '__main__':
     game = GameOfLife.from_file('grid.txt')
-    print(game.curr_generation)
+

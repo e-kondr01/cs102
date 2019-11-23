@@ -91,44 +91,69 @@ def get_schedule(message: str) -> None:
 
 @bot.message_handler(commands=['near'])
 def get_near_lesson(message):
-    """ Получить ближайшее занятие """
+    """ Получить ближайшее занятие, рассчитывая,
+    что у группы есть хотя бы 1 занятие в неделю """
     _, group = message.text.split()
     today = datetime.datetime.today()
-    curr_time = today.time()
-    curr_hour = curr.time[0]
-    curr_minutes = curr.time[1]
+    curr_time = today.timetuple()
+    curr_hour = curr_time[3]
+    curr_minutes = curr_time[4]
     resp = ''
     weekchange = 0
     daycheck = today.isocalendar()[2]
 
-    for i in range(7):
+    try:
         day = get_day(daycheck)
-        week = str((today.isocalendar()[1] - 35 + weekchange) % 2 + 1))
-        web_page = get_page(group, week)
-        try:
-            times_lst, locations_lst, lessons_lst = parse_schedule(web_page, day)
-        except AttributeError:
-            daychek +=1
-            if daychek > 7:
-                daycheck = 1
-                weekchange +=1
-            continue
+        week = str((today.isocalendar()[1] - 35 + weekchange) % 2 + 1)
+        web_page = get_page(group, week)    
+        times_lst, locations_lst, lessons_lst = parse_schedule(web_page, day)
         for time, location, lession in zip(times_lst, locations_lst, lessons_lst):
-            #доделать
-            hourend = time[6:8]
-            minutesend = time[9:]
-            if curr_hour < hourend:
+            lesson_end_hour = int(time[6:8])
+            lesson_end_minutes = int(time[9:])
+            if curr_hour < lesson_end_hour:
                 resp += '<b>{}</b>\n\n<b>{}</b>, {}, {}\n'.format(russian_days[day], time, location, lession)
                 break
-            elif curr_hour = hourend and curr_minutes < minutesend:
+            elif curr_hour == lesson_end_hour and curr_minutes < lesson_end_minutes:
                 resp += '<b>{}</b>\n\n<b>{}</b>, {}, {}\n'.format(russian_days[day], time, location, lession)
                 break
-            #доделать
         else:
-            daychek +=1
-            if daychek > 7:
-                daycheck = 1
-                weekchange +=1
+            while True:
+                try:
+                    daycheck +=1
+                    if daycheck > 7:
+                        daycheck = 1
+                        weekchange +=1
+                    day = get_day(daycheck)
+                    week = str((today.isocalendar()[1] - 35 + weekchange) % 2 + 1)
+                    web_page = get_page(group, week)    
+                    times_lst, locations_lst, lessons_lst = parse_schedule(web_page, day)
+                    resp += '<b>{}</b>\n\n<b>{}</b>, {}, {}\n'.format(
+                    russian_days[day], times_lst[0], locations_lst[0], lessons_lst[0])
+                    break
+                except AttributeError:
+                    daycheck +=1
+                    if daycheck > 7:
+                        daycheck = 1
+                        weekchange +=1
+    except AttributeError:
+        while True:
+            try:
+                daycheck +=1
+                if daycheck > 7:
+                    daycheck = 1
+                    weekchange +=1
+                day = get_day(daycheck)
+                week = str((today.isocalendar()[1] - 35 + weekchange) % 2 + 1)
+                web_page = get_page(group, week)    
+                times_lst, locations_lst, lessons_lst = parse_schedule(web_page, day)
+                resp += '<b>{}</b>\n\n<b>{}</b>, {}, {}\n'.format(
+                russian_days[day], times_lst[0], locations_lst[0], lessons_lst[0])
+                break
+            except AttributeError:
+                daycheck +=1
+                if daycheck > 7:
+                    daycheck = 1
+                    weekchange +=1
 
     bot.send_message(message.chat.id, resp, parse_mode='HTML')
 

@@ -29,14 +29,14 @@ def group(values: List[str], n: int) -> List[List[str]]:
     >>> group([1,2,3,4,5,6,7,8,9], 3)
     [[1, 2, 3], [4, 5, 6], [7, 8, 9]]
     """
-    gr_Lst = []
-    in_Lst = []
+    groups = []
+    row = []
     for i, num in enumerate(values):
-        in_Lst.append(num)
+        row.append(num)
         if i % n == n - 1:
-            gr_Lst.append(in_Lst)
-            in_Lst = []
-    return gr_Lst
+            groups.append(row)
+            row = []
+    return groups
 
 
 def get_row(grid: List[List[str]], pos: Tuple[int, int]) -> List[str]:
@@ -62,10 +62,7 @@ def get_col(grid: List[List[str]], pos: Tuple[int, int]) -> List[str]:
     >>> get_col([['1', '2', '3'], ['4', '5', '6'], ['.', '8', '9']], (0, 2))
     ['3', '6', '9']
     """
-    col = []
-    for i in range(len(grid)):
-        col.append(grid[i][pos[1]])
-    return col
+    return [grid[i][pos[1]] for i in range(len(grid))]
 
 
 def get_block(grid: List[List[str]], pos: Tuple[int, int]) -> List[str]:
@@ -101,6 +98,7 @@ def find_empty_positions(grid: List[List[str]]) -> Optional[Tuple[int, int]]:
         for j in range(len(grid[i])):
             if grid[i][j] == '.':
                 return (i, j)
+    return None
 
 
 def find_possible_values(grid: List[List[str]], pos: Tuple[int, int]) -> Set[str]:
@@ -114,17 +112,10 @@ def find_possible_values(grid: List[List[str]], pos: Tuple[int, int]) -> Set[str
     >>> values == {'2', '5', '9'}
     True
     """
-    pvalues = set(map(str, range(1, 10)))
-    for num in get_row(grid, pos):
-        if num in pvalues:
-            pvalues.discard(num)
-    for num in get_col(grid, pos):
-        if num in pvalues:
-            pvalues.discard(num)
-    for num in get_block(grid, pos):
-        if num in pvalues:
-            pvalues.discard(num)
-    return pvalues
+    return set('123456789') - \
+        set(get_row(grid, pos)) - \
+        set(get_col(grid, pos)) - \
+        set(get_block(grid, pos))
 
 
 def solve(grid: List[List[str]]) -> Optional[List[List[str]]]:
@@ -196,10 +187,10 @@ def generate_sudoku(N: int) -> List[List[str]]:
     while N:
         row = random.randint(0, 8)
         col = random.randint(0, 8)
-        if grid[row][col] != '.':
-            grid[row][col] = '.'
+        if grid[row][col] != '.': # type: ignore
+            grid[row][col] = '.' # type: ignore
             N -= 1
-    return grid
+    return grid # type: ignore
 
 
 if __name__ == '__main__':

@@ -11,46 +11,47 @@ bot = telebot.TeleBot(config.access_token)
 telebot.apihelper.proxy = config.proxy
 
 days = {
-        '/monday' : '1',
-        '/tuesday' : '2',
-        '/wednesday' : '3',
-        '/thursday' : '4',
-        '/friday' : '5',
-        '/saturday' : '6',
-        '/sunday' : '7',
+        '/monday': '1',
+        '/tuesday': '2',
+        '/wednesday': '3',
+        '/thursday': '4',
+        '/friday': '5',
+        '/saturday': '6',
+        '/sunday': '7',
     }
 
 russian_days = {
-        '/monday' : 'Понедельник',
-        '/tuesday' : 'Вторник',
-        '/wednesday' : 'Среда',
-        '/thursday' : 'Четверг',
-        '/friday' : 'Пятница',
-        '/saturday' : 'Суббота',
-        '/sunday' : 'Воскресенье',
+        '/monday': 'Понедельник',
+        '/tuesday': 'Вторник',
+        '/wednesday': 'Среда',
+        '/thursday': 'Четверг',
+        '/friday': 'Пятница',
+        '/saturday': 'Суббота',
+        '/sunday': 'Воскресенье',
     }
 
 
 def get_day(day: int) -> str:
-    #по номеру дня возвращает название
+    # по номеру дня возвращает название
     for n in days.keys():
         if str(day) == days[n]:
             day = n
             break
     return day
 
-def get_page(group: str, week: str='') -> str:
+
+def get_page(group: str, week: str = '') -> str:
     if week != '0':
         week = str(week) + '/'
     url = f'{config.domain}/{group}/{week}raspisanie_zanyatiy_{group}.htm'
-    response = requests.get(url, verify = False)
+    response = requests.get(url, verify=False)
     web_page = response.text
     return web_page
 
 
-def parse_schedule(web_page: str, day: str) -> Tuple[List[str], List[str], List[str]]:
+def parse_schedule(web_page: str, day: str) -> Tuple[List[str],
+                                                     List[str], List[str]]:
     soup = BeautifulSoup(web_page, "html5lib")
-    
     num = days[day]
     day = '{}day'.format(num)
 
@@ -68,33 +69,39 @@ def parse_schedule(web_page: str, day: str) -> Tuple[List[str], List[str], List[
     # Название дисциплин и имена преподавателей
     lessons_list = schedule_table.find_all("td", attrs={"class": "lesson"})
     lessons_list = [lesson.text.split('\n\n') for lesson in lessons_list]
-    lessons_list = [', '.join([info for info in lesson_info if info]) for lesson_info in lessons_list]
+    lessons_list = [', '.join([info for info in lesson_info if info])
+                    for lesson_info in lessons_list]
 
     return times_list, locations_list, lessons_list
 
 
-@bot.message_handler(commands=['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'])
+@bot.message_handler(commands=['monday', 'tuesday',
+                     'wednesday', 'thursday', 'friday', 'saturday', 'sunday'])
 def get_schedule(message: str) -> None:
     """ Получить расписание на указанный день """
     try:
         day, week, group = message.text.split()
         if week not in tuple('012'):
-            bot.send_message(message.chat.id, 'Неверная неделя', parse_mode='HTML')
+            bot.send_message(message.chat.id, 'Неверная неделя',
+                             parse_mode='HTML')
             return None
     except ValueError:
-        bot.send_message(message.chat.id, 'Неверный формат команды', parse_mode='HTML')
+        bot.send_message(message.chat.id,
+                         'Неверный формат команды', parse_mode='HTML')
         return None
     web_page = get_page(group, week)
     if 'Расписание не найдено' in web_page:
-        bot.send_message(message.chat.id, 'Неверный номер группы', parse_mode='HTML')
+        bot.send_message(message.chat.id, 'Неверный номер группы',
+                         parse_mode='HTML')
         return None
     resp = ''
     try:
         times_lst, locations_lst, lessons_lst = parse_schedule(web_page, day)
-        for time, location, lession in zip(times_lst, locations_lst, lessons_lst):
+        for time, location, lession in zip(times_lst,
+                                           locations_lst, lessons_lst):
             resp += '<b>{}</b>, {}, {}\n'.format(time, location, lession)
     except AttributeError:
-           resp += 'Занятий нет.'
+        resp += 'Занятий нет.'
 
     bot.send_message(message.chat.id, resp, parse_mode='HTML')
 
@@ -106,7 +113,8 @@ def get_near_lesson(message):
     try:
         _, group = message.text.split()
     except ValueError:
-        bot.send_message(message.chat.id, 'Неверный формат команды', parse_mode='HTML')
+        bot.send_message(message.chat.id, 'Неверный формат команды',
+                         parse_mode='HTML')
         return None
     today = datetime.datetime.today()
     curr_time = today.timetuple()
@@ -120,50 +128,62 @@ def get_near_lesson(message):
         week = str((today.isocalendar()[1] - 35 + weekchange) % 2 + 1)
         web_page = get_page(group, week)
         if 'Расписание не найдено' in web_page:
-            bot.send_message(message.chat.id, 'Неверный номер группы', parse_mode='HTML')
+            bot.send_message(message.chat.id, 'Неверный номер группы',
+                             parse_mode='HTML')
             return None
         times_lst, locations_lst, lessons_lst = parse_schedule(web_page, day)
-        for time, location, lession in zip(times_lst, locations_lst, lessons_lst):
+        for time, location, lession in zip(
+                times_lst, locations_lst, lessons_lst):
             lesson_end_hour = int(time[6:8])
             lesson_end_minutes = int(time[9:])
             if curr_hour < lesson_end_hour:
-                resp += '<b>{}</b>\n\n<b>{}</b>, {}, {}\n'.format(russian_days[day], time, location, lession)
+                resp += '<b>{}</b>\n\n<b>{}</b>, {}, {}\n'.format(
+                    russian_days[day], time, location, lession)
                 break
-            elif curr_hour == lesson_end_hour and curr_minutes < lesson_end_minutes:
-                resp += '<b>{}</b>\n\n<b>{}</b>, {}, {}\n'.format(russian_days[day], time, location, lession)
+            elif (curr_hour == lesson_end_hour and
+                  curr_minutes < lesson_end_minutes):
+                resp += '<b>{}</b>\n\n<b>{}</b>, {}, {}\n'.format(
+                    russian_days[day], time, location, lession)
                 break
         else:
             while True:
                 try:
-                    daycheck +=1
+                    daycheck += 1
                     if daycheck > 7:
                         daycheck = 1
-                        weekchange +=1
+                        weekchange += 1
                     day = get_day(daycheck)
-                    week = str((today.isocalendar()[1] - 35 + weekchange) % 2 + 1)
+                    week = str((
+                        today.isocalendar()[1] - 35 + weekchange) % 2 + 1)
                     web_page = get_page(group, week)
-                    times_lst, locations_lst, lessons_lst = parse_schedule(web_page, day)
+                    times_lst, locations_lst, lessons_lst = parse_schedule(
+                        web_page, day)
                     resp += '<b>{}</b>\n\n<b>{}</b>, {}, {}\n'.format(
-                    russian_days[day], times_lst[0], locations_lst[0], lessons_lst[0])
+                        russian_days[day], times_lst[0],
+                        locations_lst[0], lessons_lst[0])
                     break
                 except AttributeError:
                     continue
     except AttributeError:
         while True:
             try:
-                daycheck +=1
+                daycheck += 1
                 if daycheck > 7:
                     daycheck = 1
-                    weekchange +=1
+                    weekchange += 1
                 day = get_day(daycheck)
                 week = str((today.isocalendar()[1] - 35 + weekchange) % 2 + 1)
                 web_page = get_page(group, week)
                 if 'Расписание не найдено' in web_page:
-                    bot.send_message(message.chat.id, 'Неверный номер группы', parse_mode='HTML')
+                    bot.send_message(
+                        message.chat.id, 'Неверный номер группы',
+                        parse_mode='HTML')
                     return None
-                times_lst, locations_lst, lessons_lst = parse_schedule(web_page, day)
+                times_lst, locations_lst, lessons_lst = parse_schedule(
+                    web_page, day)
                 resp += '<b>{}</b>\n\n<b>{}</b>, {}, {}\n'.format(
-                russian_days[day], times_lst[0], locations_lst[0], lessons_lst[0])
+                    russian_days[day], times_lst[0],
+                    locations_lst[0], lessons_lst[0])
                 break
             except AttributeError:
                 continue
@@ -185,19 +205,23 @@ def get_tommorow(message):
     try:
         _, group = message.text.split()
     except ValueError:
-        bot.send_message(message.chat.id, 'Неверный формат команды', parse_mode='HTML')
+        bot.send_message(
+            message.chat.id, 'Неверный формат команды', parse_mode='HTML')
         return None
     web_page = get_page(group, week)
     if 'Расписание не найдено' in web_page:
-        bot.send_message(message.chat.id, 'Неверный номер группы', parse_mode='HTML')
+        bot.send_message(
+            message.chat.id, 'Неверный номер группы', parse_mode='HTML')
         return None
     resp = ''
     try:
         times_lst, locations_lst, lessons_lst = parse_schedule(web_page, day)
-        for time, location, lession in zip(times_lst, locations_lst, lessons_lst):
-            resp += '<b>{}</b>\n\n<b>{}</b>, {}, {}\n'.format(russian_days[day], time, location, lession)
+        for time, location, lession in zip(
+                times_lst, locations_lst, lessons_lst):
+            resp += '<b>{}</b>\n\n<b>{}</b>, {}, {}\n'.format(
+                russian_days[day], time, location, lession)
     except AttributeError:
-           resp += 'Занятий нет.'
+        resp += 'Занятий нет.'
 
     bot.send_message(message.chat.id, resp, parse_mode='HTML')
 
@@ -208,24 +232,29 @@ def get_all_schedule(message):
     try:
         _, week, group = message.text.split()
         if week not in tuple('012'):
-            bot.send_message(message.chat.id, 'Неверная неделя', parse_mode='HTML')
+            bot.send_message(
+                message.chat.id, 'Неверная неделя', parse_mode='HTML')
             return None
     except ValueError:
-        bot.send_message(message.chat.id, 'Неверный формат команды', parse_mode='HTML')
+        bot.send_message(
+            message.chat.id, 'Неверный формат команды', parse_mode='HTML')
         return None
     resp = ''
     for day in days.keys():
         resp += '<b>{}</b>\n\n'.format(russian_days[day])
         web_page = get_page(group, week)
         if 'Расписание не найдено' in web_page:
-            bot.send_message(message.chat.id, 'Неверный номер группы', parse_mode='HTML')
+            bot.send_message(
+                message.chat.id, 'Неверный номер группы', parse_mode='HTML')
             return None
         try:
-            times_lst, locations_lst, lessons_lst = parse_schedule(web_page, day)
+            times_lst, locations_lst, lessons_lst = parse_schedule(
+                web_page, day)
         except AttributeError:
             resp += 'Занятий нет.\n\n'
             continue
-        for time, location, lession in zip(times_lst, locations_lst, lessons_lst):
+        for time, location, lession in zip(
+                times_lst, locations_lst, lessons_lst):
             resp += '<b>{}</b>, {}, {}\n'.format(time, location, lession)
 
     bot.send_message(message.chat.id, resp, parse_mode='HTML')

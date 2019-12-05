@@ -2,9 +2,11 @@ import config
 import requests
 import time
 
-from datetime import date
+from datetime import datetime
 from statistics import median
 from typing import List, Dict, Optional
+
+curr_year = datetime.today().timetuple()[0]
 
 
 def get(url: str, params={}, timeout=5, max_retries=5,
@@ -51,7 +53,7 @@ def get_friends(user_id: int, fields: str) -> dict:
     return friends
 
 
-def age_predict(user_id: int) -> int:
+def age_predict(user_id: int) -> float:
     """
     >>> age_predict(???)
     ???
@@ -64,30 +66,19 @@ def age_predict(user_id: int) -> int:
 
     for i in range(friends['response']['count']):
         try:
-            _, _, byear = friends['response']['items'][i]['bdate'].split['.']
-            age = date.year() - byear
-            ages.append(age)
-            print(age)
-        except:
-            pass
+            bdate = friends['response']['items'][i]['bdate']
+        except KeyError:
+            continue
+        try:
+            bday, bmonth, byear = bdate.split('.')
+        except ValueError:
+            continue
+        byear = int(byear)
+        age = curr_year - byear
+        ages.append(age)
     guess_age = median(ages)
     return guess_age
 
-
-def messages_get_history(user_id, offset=0, count=20):
-    """ Получить историю переписки с указанным пользователем
-
-    :param user_id: идентификатор пользователя, с которым
-    нужно получить историю переписки
-    :param offset: смещение в истории переписки
-    :param count: число сообщений, которое нужно получить
-    """
-    assert isinstance(user_id, int), "user_id must be positive integer"
-    assert user_id > 0, "user_id must be positive integer"
-    assert isinstance(offset, int), "offset must be positive integer"
-    assert offset >= 0, "user_id must be positive integer"
-    assert count >= 0, "user_id must be positive integer"
-    # PUT YOUR CODE HERE
 
 test = age_predict(74008457)
 print(test)

@@ -1,11 +1,7 @@
 VK_CONFIG = {
     'domain': 'https://api.vk.com/method',
-    'access_token': '''4ef4a532860919c860434e1ffe70adbe6ca149c4d7f60d3be4f2637b154dd287cc944e52450fa1b6cd7f6''',
+    'access_token': '''049cbd567\
+e8cd8844e7809632fc43936b03c7c5554\
+8c43cd27a1e5e5f6128f3c08693c5ebb55f73e679b7''',
     'version': '5.103',
-}
-
-
-PLOTLY_CONFIG = {
-    'username': 'Имя пользователя Plot.ly',
-    'api_key': 'Ключ доступа Plot.ly',
 }

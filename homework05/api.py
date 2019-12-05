@@ -80,5 +80,6 @@ def age_predict(user_id: int) -> float:
     return guess_age
 
 
-test = age_predict(74008457)
-print(test)
+if __name__ == '__main__':
+    test = age_predict(74008457)
+    print(test)

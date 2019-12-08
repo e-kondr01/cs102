@@ -1,13 +1,14 @@
 import config
+import gensim
 import pandas as pd
+import pyLDAvis
+import pyLDAvis.gensim
 import pymorphy2
 import requests
-import textwrap
 
-from pandas.io.json import json_normalize
+from gensim.corpora.dictionary import Dictionary
+from gensim.models.ldamulticore import LdaModel
 from stop_words import get_stop_words
-from string import Template, punctuation
-from tqdm import tqdm
 
 morph = pymorphy2.MorphAnalyzer()
 access_token = config.VK_CONFIG['access_token']
@@ -72,8 +73,11 @@ def prep_text(wall, count: int) -> list:
     """ Подготовка текста к построению тематической модели """
     text = ''
     for i in range(count):
-        text += wall['response']['items'][i]['text']
-        text += ' '
+        try:
+            text += wall['response']['items'][i]['text']
+            text += ' '
+        except IndexError:
+            break
 
     # Удаление ссылок, хэштегов, стоп-слов
     textlist = text.split()
@@ -102,7 +106,18 @@ def prep_text(wall, count: int) -> list:
     return textlist
 
 
+def topic_model_visualize(textlist: list, num_topics: int):
+    """Визуализация тематической модели"""
+    textlist = [textlist]
+    common_dictionary = Dictionary(textlist)
+    common_corpus = [common_dictionary.doc2bow(text) for text in textlist]
+    lda = LdaModel(common_corpus, num_topics=num_topics)
+    vis = pyLDAvis.gensim.prepare(lda, common_corpus, common_dictionary)
+    pyLDAvis.save_html(vis, 'LDA.html')
+    pyLDAvis.show(data=vis, open_browser=True)
+
+
 if __name__ == '__main__':
-    wall1 = get_wall(domain='studanal', count=8)
-    text1 = prep_text(wall1, 8)
-    print(text1)
+    wall1 = get_wall(domain='studanal', count=1000)
+    text1 = prep_text(wall1, 1000)
+    topic_model_visualize(text1, 4)

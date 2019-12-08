@@ -1,13 +1,17 @@
 import config
 import pandas as pd
+import pymorphy2
 import requests
 import textwrap
 
 from pandas.io.json import json_normalize
-from string import Template
+from stop_words import get_stop_words
+from string import Template, punctuation
 from tqdm import tqdm
 
+morph = pymorphy2.MorphAnalyzer()
 access_token = config.VK_CONFIG['access_token']
+stop_words = get_stop_words('ru')
 
 
 def get_wall(
@@ -64,7 +68,41 @@ def get_wall(
     return wall
 
 
+def prep_text(wall, count: int) -> list:
+    """ Подготовка текста к построению тематической модели """
+    text = ''
+    for i in range(count):
+        text += wall['response']['items'][i]['text']
+        text += ' '
+
+    # Удаление ссылок, хэштегов, стоп-слов
+    textlist = text.split()
+    for i in range(len(textlist)):
+        try:
+            if ('https://' in textlist[i] or '#' in textlist[i] or
+                    textlist[i] in stop_words):
+                del textlist[i]
+        except IndexError:
+            break
+    text = ' '.join(textlist)
+
+    # Удаление символов, не являющихся буквами (пунктуация, эмодзи и т.д.)
+    newtext = ''
+    for c in text:
+        if c.isalpha() is True or c == ' ':
+            newtext += c
+        if c == '\n':
+            newtext += ' '
+
+    # Проведение нормализации
+    textlist = newtext.split()
+    for i in range(len(textlist)):
+        textlist[i] = morph.parse(textlist[i])[0].normal_form
+
+    return textlist
+
+
 if __name__ == '__main__':
-    wall1 = get_wall(domain='studanal', count=1)
-    with open('test123.txt', 'w') as f:
-        f.write(str(wall1))
+    wall1 = get_wall(domain='studanal', count=8)
+    text1 = prep_text(wall1, 8)
+    print(text1)

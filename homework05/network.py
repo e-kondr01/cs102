@@ -22,7 +22,8 @@ def get_network(users_ids, as_edgelist=True):
     vertices = list(range(len(user_list)))
     edges = set()
     for i in range(len(user_list)):
-        user_friends = get_friends(user_list[i], 'first_name')['response']['items']
+        user_friends = get_friends(user_list[i], 'first_name')[
+            'response']['items']
         for user in user_friends:
             if user['id'] in user_list:
                 j = user_list.index(user['id'])

@@ -1,3 +1,4 @@
+import config
 import pandas as pd
 import requests
 import textwrap
@@ -5,6 +6,8 @@ import textwrap
 from pandas.io.json import json_normalize
 from string import Template
 from tqdm import tqdm
+
+access_token = config.VK_CONFIG['access_token']
 
 
 def get_wall(
@@ -36,5 +39,32 @@ def get_wall(
      которые необходимо вернуть.
     :param v: Версия API.
     """
-    # PUT YOUR CODE HERE
-    pass
+
+    code = {
+        "owner_id": owner_id,
+        "domain": domain,
+        "offset": offset,
+        "count": count,
+        "filter": filter,
+        "extended": extended,
+        "fields": fields,
+        "v": v
+    }
+
+    response = requests.post(
+        url="https://api.vk.com/method/execute",
+        data={
+            "code": f'return API.wall.get({code});',
+            "access_token": access_token,
+            "v": v
+        }
+    )
+
+    wall = response.json()
+    return wall
+
+
+if __name__ == '__main__':
+    wall1 = get_wall(domain='studanal', count=1)
+    with open('test123.txt', 'w') as f:
+        f.write(str(wall1))

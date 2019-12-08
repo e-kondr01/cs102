@@ -1,4 +1,5 @@
 import config
+import copy
 import gensim
 import pandas as pd
 import pyLDAvis
@@ -8,11 +9,16 @@ import requests
 
 from gensim.corpora.dictionary import Dictionary
 from gensim.models.ldamulticore import LdaModel
-from stop_words import get_stop_words
+from nltk.corpus import stopwords
 
 morph = pymorphy2.MorphAnalyzer()
 access_token = config.VK_CONFIG['access_token']
-stop_words = get_stop_words('ru')
+
+stop_words_default = stopwords.words('russian')
+stop_words_default_en = stopwords.words('english')
+additional_stop_words = ['который', 'также', 'это', 'свой', 'весь', "самый",
+                         'наш', "мочь"]
+stop_words = stop_words_default + additional_stop_words + stop_words_default_en
 
 
 def get_wall(
@@ -79,16 +85,13 @@ def prep_text(wall, count: int) -> list:
         except IndexError:
             break
 
-    # Удаление ссылок, хэштегов, стоп-слов
+    # Удаление ссылок и  хэштегов
     textlist = text.split()
-    for i in range(len(textlist)):
-        try:
-            if ('https://' in textlist[i] or '#' in textlist[i] or
-                    textlist[i] in stop_words):
-                del textlist[i]
-        except IndexError:
-            break
-    text = ' '.join(textlist)
+    newtextlist = copy.copy(textlist)
+    for w in textlist:
+        if 'https://' in w or '#' in w:
+            newtextlist.remove(w)
+    text = ' '.join(newtextlist)
 
     # Удаление символов, не являющихся буквами (пунктуация, эмодзи и т.д.)
     newtext = ''
@@ -103,7 +106,13 @@ def prep_text(wall, count: int) -> list:
     for i in range(len(textlist)):
         textlist[i] = morph.parse(textlist[i])[0].normal_form
 
-    return textlist
+    # Удаление стоп-слов
+    newtextlist = copy.copy(textlist)
+    for w in textlist:
+        if w in stop_words or len(w) == 1:
+            newtextlist.remove(w)
+
+    return newtextlist
 
 
 def topic_model_visualize(textlist: list, num_topics: int):
@@ -118,6 +127,11 @@ def topic_model_visualize(textlist: list, num_topics: int):
 
 
 if __name__ == '__main__':
-    wall1 = get_wall(domain='studanal', count=1000)
-    text1 = prep_text(wall1, 1000)
-    topic_model_visualize(text1, 4)
+    wall1 = get_wall(domain='studanal', count=100)
+    wall2 = get_wall(domain='lentach', count=100)
+    wall3 = get_wall(domain='habr', count=100)
+    text1 = prep_text(wall1, 100)
+    text2 = prep_text(wall2, 100)
+    text3 = prep_text(wall3, 100)
+    textlist1 = text1 + text2 + text3
+    topic_model_visualize(textlist1, 3)

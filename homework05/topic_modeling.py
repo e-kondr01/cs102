@@ -121,17 +121,18 @@ def topic_model_visualize(textlist: list, num_topics: int):
     common_dictionary = Dictionary(textlist)
     common_corpus = [common_dictionary.doc2bow(text) for text in textlist]
     lda = LdaModel(common_corpus, num_topics=num_topics)
+
     vis = pyLDAvis.gensim.prepare(lda, common_corpus, common_dictionary)
     pyLDAvis.save_html(vis, 'LDA.html')
     pyLDAvis.show(data=vis, open_browser=True)
 
 
 if __name__ == '__main__':
-    wall1 = get_wall(domain='studanal', count=100)
-    wall2 = get_wall(domain='lentach', count=100)
-    wall3 = get_wall(domain='habr', count=100)
-    text1 = prep_text(wall1, 100)
-    text2 = prep_text(wall2, 100)
-    text3 = prep_text(wall3, 100)
+    wall1 = get_wall(domain='itmoru', count=1000)
+    wall2 = get_wall(domain='lentach', count=1000)
+    wall3 = get_wall(domain='dotatoday', count=1000)
+    text1 = prep_text(wall1, 1000)
+    text2 = prep_text(wall2, 1000)
+    text3 = prep_text(wall3, 1000)
     textlist1 = text1 + text2 + text3
     topic_model_visualize(textlist1, 3)

@@ -1,36 +1,74 @@
 import igraph
-import numpy as np
+import time
 
 from api import get_friends
 from igraph import Graph, plot
+from typing import List
 
 
-def get_network(users_ids, as_edgelist=True):
+def get_network(users_ids: List[int], as_edgelist: bool = True):
     """ Building a friend graph for an arbitrary list of users """
-    # Исключаем людей, которые не имеют общих друзей
-    user_list = []
+    edges = set()
+    count = 1  # Т. к. первый запрос совершается до вызова функции
+    start_time = time.time()
+    curr_time = time.time()
+    new_users_ids = []
+
+    # Исключаем пользователей, которые не имеют общих друзей
+    # Кластеризация не происходит, когда есть такие пользователи
     for uid in users_ids:
-        try:
-            user_friends = get_friends(uid, 'first_name')['response']['items']
-        except KeyError:
+        # Time-out для запросов (не больше 3 в секунду)
+        prev_time = curr_time
+        curr_time = time.time()
+        if 1 - (curr_time - start_time) <= 0:
+            start_time = prev_time
+        elif count == 3:
+            wait = 1 - (curr_time - start_time)
+            time.sleep(wait)
+            count = 1
+            start_time = time.time()
+        else:
+            count += 1
+
+        user_friends = get_friends(uid)
+
+        if not user_friends:
             continue
-        for friend in user_friends:
-            if friend['id'] in users_ids:
-                user_list.append(uid)
+        for friend_id in user_friends:
+            if friend_id in users_ids:
+                new_users_ids.append(uid)
                 break
 
-    vertices = list(range(len(user_list)))
-    edges = set()
-    for i in range(len(user_list)):
-        user_friends = get_friends(user_list[i], 'first_name')[
-            'response']['items']
-        for user in user_friends:
-            if user['id'] in user_list:
-                j = user_list.index(user['id'])
-                edges.add((i, j))
+    # определяем рёбра графа
+    for uid in new_users_ids:
+        # Time-out для запросов (не больше 3 в секунду)
+        prev_time = curr_time
+        curr_time = time.time()
+        if 1 - (curr_time - start_time) <= 0:
+            start_time = prev_time
+        elif count == 3:
+            wait = 1 - (curr_time - start_time)
+            time.sleep(wait)
+            count = 1
+            start_time = time.time()
+        else:
+            count += 1
+
+        user_friends = get_friends(uid)
+
+        if not user_friends:
+            continue
+        for friend_id in user_friends:
+            if friend_id in new_users_ids:
+                edges.add((new_users_ids.index(uid),
+                           new_users_ids.index(friend_id)))
+
     edges = list(edges)
+    vertices = new_users_ids
+
     if as_edgelist:
         return vertices, edges
+
     else:
         matrix = [[0 for _ in vertices] for _ in vertices]
         for edge in edges:
@@ -38,7 +76,7 @@ def get_network(users_ids, as_edgelist=True):
         return matrix
 
 
-def plot_graph(vertices, edges):
+def plot_graph(vertices: list, edges: list) -> None:
     """Визуализация графа"""
     g = Graph(vertex_attrs={"label": vertices}, edges=edges, directed=False)
 
@@ -57,7 +95,6 @@ def plot_graph(vertices, edges):
 
 
 if __name__ == '__main__':
-    d1 = get_friends(74008457, 'first_name')
-    friends1 = [item['id'] for item in d1['response']['items']]
+    friends1 = get_friends(74008457)
     vertices1, edges1 = get_network(friends1)
     plot_graph(vertices1, edges1)

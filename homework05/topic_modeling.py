@@ -6,10 +6,12 @@ import pyLDAvis
 import pyLDAvis.gensim
 import pymorphy2
 import requests
+import time
 
 from gensim.corpora.dictionary import Dictionary
 from gensim.models.ldamulticore import LdaModel
 from nltk.corpus import stopwords
+from typing import List, Dict
 
 morph = pymorphy2.MorphAnalyzer()
 access_token = config.VK_CONFIG['access_token']
@@ -30,7 +32,7 @@ def get_wall(
     extended: int = 0,
     fields: str = '',
     v: str = '5.103'
-) -> pd.DataFrame:
+) -> List[Dict]:
     """
     Возвращает список записей со стены пользователя или сообщества.
 
@@ -50,37 +52,71 @@ def get_wall(
      которые необходимо вернуть.
     :param v: Версия API.
     """
+    wall = []
 
-    code = {
-        "owner_id": owner_id,
-        "domain": domain,
-        "offset": offset,
-        "count": count,
-        "filter": filter,
-        "extended": extended,
-        "fields": fields,
-        "v": v
-    }
+    c = 0
+    start_time = time.time()
+    curr_time = time.time()
+    for _ in range(count // 2500 + 1):
+        # Time-out для запросов (не больше 3 в секунду)
+        prev_time = curr_time
+        curr_time = time.time()
+        if 1 - (curr_time - start_time) <= 0:
+            start_time = prev_time
+        elif c == 3:
+            wait = 1 - (curr_time - start_time)
+            time.sleep(wait)
+            c = 1
+            start_time = time.time()
+        else:
+            c += 1
 
-    response = requests.post(
-        url="https://api.vk.com/method/execute",
-        data={
-            "code": f'return API.wall.get({code});',
-            "access_token": access_token,
-            "v": v
-        }
-    )
+        curr_count = 2500 if count > 2500 else count
+        n_queries = curr_count // 100
+        code = 'return ['
+        for i in range(n_queries):
+            query = {
+                'owner_id': owner_id,
+                'domain': domain,
+                'offset': offset + i * 100,
+                'count': 100,
+                'filter': filter,
+                'extended': extended,
+                'fields': fields,
+                'v': v
+            }
 
-    wall = response.json()
+            code += f'API.wall.get({str(query)})'
+            if i < n_queries - 1:
+                code += ', '
+            else:
+                code += '];'
+
+        response = requests.post(
+            url="https://api.vk.com/method/execute",
+            data={
+                "code": code,
+                "access_token": access_token,
+                "v": v
+            }
+        )
+        for i in range(n_queries):
+            wall.extend(response.json()['response'][i]['items'])
+
+        count -= 2500
+        if count <= 0:
+            break
+        offset += 2500
+
     return wall
 
 
-def prep_text(wall, count: int) -> list:
+def prep_text(wall: List[Dict], count: int) -> List:
     """ Подготовка текста к построению тематической модели """
     text = ''
     for i in range(count):
         try:
-            text += wall['response']['items'][i]['text']
+            text += wall[i]['text']
             text += ' '
         except IndexError:
             break
@@ -115,7 +151,7 @@ def prep_text(wall, count: int) -> list:
     return newtextlist
 
 
-def topic_model_visualize(textlist: list, num_topics: int):
+def topic_model_visualize(textlist: list, num_topics: int) -> None:
     """Визуализация тематической модели"""
     textlist = [textlist]
     common_dictionary = Dictionary(textlist)
@@ -128,11 +164,11 @@ def topic_model_visualize(textlist: list, num_topics: int):
 
 
 if __name__ == '__main__':
-    wall1 = get_wall(domain='itmoru', count=1000)
-    wall2 = get_wall(domain='lentach', count=1000)
-    wall3 = get_wall(domain='dotatoday', count=1000)
-    text1 = prep_text(wall1, 1000)
-    text2 = prep_text(wall2, 1000)
-    text3 = prep_text(wall3, 1000)
+    wall1 = get_wall(domain='itmoru', count=3000)
+    wall2 = get_wall(domain='lentach', count=3000)
+    wall3 = get_wall(domain='dotatoday', count=3000)
+    text1 = prep_text(wall1, 3000)
+    text2 = prep_text(wall2, 3000)
+    text3 = prep_text(wall3, 3000)
     textlist1 = text1 + text2 + text3
     topic_model_visualize(textlist1, 3)

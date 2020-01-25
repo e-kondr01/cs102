@@ -114,6 +114,7 @@ BASE_PATH = r'C:\cs102\exam1'
 PATH = os.path.join(BASE_PATH, 'spb_cameras.csv')
 POPULATION_PATH = os.path.join(BASE_PATH, 'spb_population_by_district.csv')
 CAMERAS_PATH = os.path.join(BASE_PATH, 'cameras_per_district.csv')
+EXAM_DONE_PATH = CAMERAS_PATH = os.path.join(BASE_PATH, 'exam_done.csv')
 
 df = DataFrame.from_file(PATH)
 amount_df = df.group_by('district').sum_by('amount')
@@ -147,7 +148,7 @@ full_df.headers.append('Плотность')
 for row in full_df.rows:
     row.append(float(row[2]) / float(row[3]))
 
-full_df.to_csv('exam_done.csv')
+full_df.to_csv(EXAM_DONE_PATH)
 print(full_df)
 # Район                Число Камер    Население    Площадь    Плотность
 # -----------------  -------------  -----------  ---------  -----------

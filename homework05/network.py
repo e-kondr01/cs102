@@ -48,7 +48,7 @@ def get_network(users_ids: List[int], as_edgelist: bool = True):
             start_time = prev_time
         elif count == 3:
             wait = 1 - (curr_time - start_time)
-            time.sleep(wait)
+            time.sleep(1)
             count = 1
             start_time = time.time()
         else:

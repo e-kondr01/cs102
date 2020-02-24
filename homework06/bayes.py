@@ -9,7 +9,7 @@ class NaiveBayesClassifier:
         self.words_dict = {}
         self.classes_dict = {}
 
-    def fit(self, X, y):
+    def fit(self, X: List[str], y: List[str]) -> None:
         """ Fit Naive Bayes classifier according to X, y. """
         for sentence, label in zip(X, y):
             word_list = sentence.split()

@@ -9,7 +9,7 @@ def clean(s):
     return s.translate(translator)
 
 
-with open(f"C:\cs102\homework06\data\SMSSpamCollection",
+with open("C:\cs102\homework06\data\SMSSpamCollection",
           encoding='UTF-8') as f:
     data = list(csv.reader(f, delimiter="\t"))
     X, y = [], []

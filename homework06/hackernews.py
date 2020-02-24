@@ -1,10 +1,10 @@
+from bayes import NaiveBayesClassifier
 from bottle import (
     route, run, template, request, redirect
 )
-
-from scraputils import get_news
 from db import News, session
-from bayes import NaiveBayesClassifier
+from scraputils import get_news
+from test_bayes import clean
 
 
 @route("/news")
@@ -48,8 +48,30 @@ def update_news():
 
 @route("/classify")
 def classify_news():
-    # PUT YOUR CODE HERE
-    pass
+    s = session()
+    rows = s.query(News).filter(News.label == None).all()
+    training_rows = s.query(News).filter(News.label != None).all()
+    print('Received info from database')
+    # Fit the classifier
+    X, y = [], []
+    for news in training_rows:
+        X.append(news.title)
+        y.append(news.label)
+    X = [clean(x).lower() for x in X]
+    model = NaiveBayesClassifier(alpha=1)
+    model.fit(X, y)
+    print('Fitted the classifier')
+    unclassified_news = []
+    for news in rows:
+        unclassified_news.append(news.title)
+    predicted_labels = model.predict(unclassified_news)
+    print('labels predicted')
+    for news, label in zip(rows, predicted_labels):
+        news.label = label
+    classified_news = sorted(rows, key=lambda news: news.label)
+    print('news sorted')
+    return template('C:\cs102\homework06\\news_recommendations.tpl',
+                    rows=classified_news)
 
 
 if __name__ == "__main__":

@@ -35,9 +35,13 @@ class TestAsyncHTTPServer(unittest.TestCase):
         data = r.content.decode()
         length = r.headers.get("Content-Length")
         self.assertEqual(r.status_code, 200)
+        print(r.status_code)
         self.assertEqual(int(length), 34)
+        print(int(length))
         self.assertEqual(len(data), 34)
+        print(len(data))
         self.assertEqual(data, "<html>Directory index file</html>\n")
+        print(data)
 
     def test_index_not_found(self):
         """Directory index file absent"""

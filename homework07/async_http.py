@@ -5,11 +5,12 @@ import multiprocessing
 import logging
 import mimetypes
 import os
-import urllib
 import argparse
 
 from datetime import datetime
+from pathlib import Path
 from time import strftime, gmtime
+from urllib.parse import urlparse
 
 
 def url_normalize(path):
@@ -37,7 +38,7 @@ class FileProducer(object):
         if self.file:
             data = self.file.read(self.chunk_size)
             if data:
-                return data
+                return data.encode()
             self.file.close()
             self.file = None
         return ""
@@ -72,6 +73,8 @@ class AsyncHTTPRequestHandler(asynchat.async_chat):
         self.curr_request = ''
         self.method = 'undefined'
         self.headers = {}
+        self.url = None
+        self.path = None
 
     def collect_incoming_data(self, data):
         #  log.debug(f"Incoming data: {data}")
@@ -89,6 +92,12 @@ class AsyncHTTPRequestHandler(asynchat.async_chat):
             self.parse_request()
 
     def parse_request(self):
+        print('URL: ', self.url)
+        parsed_url = self.translate_path()
+        print(parsed_url)
+        self.path = parsed_url[2]
+        if self.path == '/':
+            self.path = 'index.html'
         self.handle_request()
 
     def parse_headers(self):
@@ -98,10 +107,11 @@ class AsyncHTTPRequestHandler(asynchat.async_chat):
             self.method = 'HEAD'
         elif 'GET' in headers_lst[0]:
             self.method = 'GET'
+        self.url = headers_lst[0][headers_lst[0].find(' ')+1:headers_lst[0].rfind(' ')]
         for header in headers_lst[1:]:
             key, value = header.split(': ')
             self.headers[key] = value
-        print('Headers parsed')
+        print(f'Headers parsed: \n {self.headers}')
 
     def handle_request(self):
         if self.method == 'GET':
@@ -141,14 +151,27 @@ class AsyncHTTPRequestHandler(asynchat.async_chat):
         curr_time = datetime.now().time()
         self.send_header('Server', 'async_http_py_Kondrashov')
         self.send_header('Date', curr_time)
+        self.send_header('Content-Length', self.content_length)
         self.end_headers()
 
-    def translate_path(self, path):
-        pass
+    def translate_path(self):
+        url = url_normalize(self.url)
+        print(f'Normalized URL: {url}')
+        return urlparse(url)
 
     def do_GET(self):
+        f = open('C:\\cs102\\homework07\\index.html', 'r')
+        f_f = f.readline()
+        print(f_f)
+        self.content_length = len(f_f)
+        print(self.content_length)
         self.send_response(200)
         self.send_head()
+        #  p = Path('.')
+        pp = self.path
+        self.push_with_producer(FileProducer(f))
+        print('pushed')
+        f.close()
         self.handle_close()
         print('GET is done')
 

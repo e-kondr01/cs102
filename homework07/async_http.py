@@ -6,11 +6,12 @@ import logging
 import mimetypes
 import os
 import argparse
+import urllib
+import codecs
 
 from datetime import datetime
 from pathlib import Path
 from time import strftime, gmtime
-from urllib.parse import urlparse
 
 
 def url_normalize(path):
@@ -30,18 +31,41 @@ def url_normalize(path):
 
 class FileProducer(object):
 
-    def __init__(self, file, chunk_size=4096):
-        self.file = file
+    def __init__(self, f, chunk_size=4096):
+        self.file = f
+        print(self.file)
         self.chunk_size = chunk_size
 
     def more(self):
         if self.file:
-            data = self.file.read(self.chunk_size)
+            print('yes')
+            f = open('C:\\cs102\\homework07\\index.html', 'rb')
+            data = f.read()
+            #data = self.file.read()
+            print(data)
             if data:
-                return data.encode()
-            self.file.close()
+                return data
             self.file = None
         return ""
+
+
+class simple_producer:
+
+    def __init__(self, data, buffer_size=512):
+        self.buffer_size = buffer_size
+        if data:
+            self.data = data
+            print(self.data)
+
+    def more(self):
+        if len(self.data) > self.buffer_size:
+            result = self.data[:self.buffer_size]
+            self.data = self.data[self.buffer_size:]
+            return result
+        else:
+            result = self.data
+            self.data = ''
+            return result
 
 
 class AsyncServer(asyncore.dispatcher):
@@ -63,13 +87,15 @@ class AsyncServer(asyncore.dispatcher):
 
 
 class AsyncHTTPRequestHandler(asynchat.async_chat):
-
+    # буфер out вместо push?
     def __init__(self, sock):
         super().__init__(sock)
-        self.ibuffer = []
+        self.in_buffer = ''
+        self.out_buffer = b''
+        self.set_terminator(b"\r\n\r\n")
+
         self.reading_headers = True
         self.handling = False
-        self.set_terminator(b"\r\n\r\n")
         self.curr_request = ''
         self.method = 'undefined'
         self.headers = {}
@@ -79,13 +105,13 @@ class AsyncHTTPRequestHandler(asynchat.async_chat):
     def collect_incoming_data(self, data):
         #  log.debug(f"Incoming data: {data}")
         print(f"Incoming data: {data}")
-        self.ibuffer.append(data.decode('ASCII'))
+        self.in_buffer += data.decode('ASCII')
 
     def found_terminator(self):
         if self.reading_headers:
             self.reading_headers = False
             self.parse_headers()
-            self.ibuffer = []
+            self.in_buffer = ''
             self.handling = True
             self.parse_request()
         elif self.handling:
@@ -101,7 +127,7 @@ class AsyncHTTPRequestHandler(asynchat.async_chat):
         self.handle_request()
 
     def parse_headers(self):
-        unparsed = "".join(self.ibuffer)
+        unparsed = "".join(self.in_buffer)
         headers_lst = unparsed.split('\r\n')
         if 'HEAD' in headers_lst[0]:
             self.method = 'HEAD'
@@ -122,8 +148,8 @@ class AsyncHTTPRequestHandler(asynchat.async_chat):
             self.send_error(405)
             self.handle_close()
 
-    def send_header(self, keyword, value):
-        self.push(f'{keyword}: {value}\r\n'.encode())
+    def add_header(self, keyword, value):
+        self.out_buffer += f'{keyword}: {value}\r\n'.encode()
 
     def send_error(self, code, message=None):
         try:
@@ -138,40 +164,47 @@ class AsyncHTTPRequestHandler(asynchat.async_chat):
         self.send_header("Connection", "close")
         self.end_headers()
 
-    def send_response(self, code: int, message=None):
-        self.push(f'HTTP/1.1 {code} {responses[code]}\r\n'.encode())
+    def add_response(self, code: int, message=None):
+        self.out_buffer += f'HTTP/1.1 {code} {responses[code]}\r\n'.encode()
 
     def end_headers(self):
-        self.push(f'\r\n'.encode())
+        self.out_buffer += f'\r\n'.encode()
 
     def date_time_string(self):
         pass
 
-    def send_head(self):
+    def add_head(self):
         curr_time = datetime.now().time()
-        self.send_header('Server', 'async_http_py_Kondrashov')
-        self.send_header('Date', curr_time)
-        self.send_header('Content-Length', self.content_length)
+        self.add_header('Server', 'async_http_py_Kondrashov')
+        self.add_header('Date', curr_time)
+        #self.send_header('Content-Length', self.content_length)
         self.end_headers()
 
     def translate_path(self):
         url = url_normalize(self.url)
         print(f'Normalized URL: {url}')
-        return urlparse(url)
+        return urllib.parse.urlparse(url)
 
     def do_GET(self):
-        f = open('C:\\cs102\\homework07\\index.html', 'r')
-        f_f = f.readline()
-        print(f_f)
-        self.content_length = len(f_f)
-        print(self.content_length)
-        self.send_response(200)
-        self.send_head()
-        #  p = Path('.')
-        pp = self.path
-        self.push_with_producer(FileProducer(f))
-        print('pushed')
+        try:
+            f = open('C:\\cs102\\homework07\\index.html', 'rb')
+        except FileNotFoundError:
+            self.send_error()
+        #print(f)
+        #print(f.read())
+        #f_f = f.readline()
+        #print(f_f)
+        #self.content_length = len(f_f)
+        #print(self.content_length)
+        self.add_response(200)
+        self.add_head()
+        self.out_buffer += f.read()
         f.close()
+        #  p = Path('.')
+        #pp = self.path
+        self.push_with_producer(simple_producer(self.out_buffer))
+        #self.push('<html>Directory index file</html>'.encode())
+        print('pushed')
         self.handle_close()
         print('GET is done')
 

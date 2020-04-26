@@ -35,13 +35,9 @@ class TestAsyncHTTPServer(unittest.TestCase):
         data = r.content.decode()
         length = r.headers.get("Content-Length")
         self.assertEqual(r.status_code, 200)
-        print(r.status_code)
         self.assertEqual(int(length), 34)
-        print(int(length))
         self.assertEqual(len(data), 34)
-        print(len(data))
         self.assertEqual(data, "<html>Directory index file</html>\n")
-        print(data)
 
     def test_index_not_found(self):
         """Directory index file absent"""
@@ -65,7 +61,7 @@ class TestAsyncHTTPServer(unittest.TestCase):
             data.decode(), "Would you tell me, please, which way I ought to go from here?\n"
         )
 
-    def test_file_with_query_string(self):
+    def test_file_with_slash(self):
         """Slash after filename"""
         r = requests.get(f"{self.host}:{self.port}/404/page.html/")
         self.assertEqual(r.status_code, 404)
@@ -120,7 +116,7 @@ class TestAsyncHTTPServer(unittest.TestCase):
     def test_post_method(self):
         """Post method forbidden"""
         r = requests.post(f"{self.host}:{self.port}/dir1/page.html")
-        self.assertIn(int(r.status_code), (400, 405))
+        self.assertIn(int(r.status_code), 405)
 
     def test_head_method(self):
         """Head method support"""

@@ -14,6 +14,18 @@ from pathlib import Path
 from time import strftime, gmtime
 
 
+responses = {
+    200: ('OK', 'Request fulfilled, document follows'),
+    400: ('Bad Request',
+          'Bad request syntax or unsupported method'),
+    403: ('Forbidden',
+          'Request forbidden -- authorization will not help'),
+    404: ('Not Found', 'Nothing matches the given URI'),
+    405: ('Method Not Allowed',
+          'Specified method is invalid for this resource.'),
+}
+
+
 def url_normalize(path):
     if path.startswith("."):
         path = "/" + path
@@ -26,9 +38,11 @@ def url_normalize(path):
             path = path.replace("/..", "", 1)
     path = path.replace("/./", "/")
     path = path.replace("/.", "")
+    path = path.replace('%20', ' ')
     return path
 
 
+'''
 class FileProducer(object):
 
     def __init__(self, f, chunk_size=4096):
@@ -47,6 +61,7 @@ class FileProducer(object):
                 return data
             self.file = None
         return ""
+'''
 
 
 class simple_producer:
@@ -55,7 +70,7 @@ class simple_producer:
         self.buffer_size = buffer_size
         if data:
             self.data = data
-            print(self.data)
+            print(f'Data to send: {self.data}')
 
     def more(self):
         if len(self.data) > self.buffer_size:
@@ -76,6 +91,7 @@ class AsyncServer(asyncore.dispatcher):
         self.set_reuse_addr()
         self.bind((host, port))
         self.listen(5)
+        print(f'Server started at: {host}:{port}')
 
     def handle_accepted(self, sock, addr):
         #  log.debug(f"Incoming connection from {addr}")
@@ -87,7 +103,7 @@ class AsyncServer(asyncore.dispatcher):
 
 
 class AsyncHTTPRequestHandler(asynchat.async_chat):
-    # буфер out вместо push?
+
     def __init__(self, sock):
         super().__init__(sock)
         self.in_buffer = ''
@@ -96,11 +112,7 @@ class AsyncHTTPRequestHandler(asynchat.async_chat):
 
         self.reading_headers = True
         self.handling = False
-        self.curr_request = ''
-        self.method = 'undefined'
         self.headers = {}
-        self.url = None
-        self.path = None
 
     def collect_incoming_data(self, data):
         #  log.debug(f"Incoming data: {data}")
@@ -118,12 +130,11 @@ class AsyncHTTPRequestHandler(asynchat.async_chat):
             self.parse_request()
 
     def parse_request(self):
+        self.root = Path.cwd() / 'homework07'
         print('URL: ', self.url)
         parsed_url = self.translate_path()
         print(parsed_url)
-        self.path = parsed_url[2]
-        if self.path == '/':
-            self.path = 'index.html'
+        self.path = parsed_url[2] if parsed_url[2] else '/'
         self.handle_request()
 
     def parse_headers(self):
@@ -133,13 +144,38 @@ class AsyncHTTPRequestHandler(asynchat.async_chat):
             self.method = 'HEAD'
         elif 'GET' in headers_lst[0]:
             self.method = 'GET'
-        self.url = headers_lst[0][headers_lst[0].find(' ')+1:headers_lst[0].rfind(' ')]
+        self.url = headers_lst[0][headers_lst[0].find(' ')+2:headers_lst[0].rfind(' ')]
         for header in headers_lst[1:]:
             key, value = header.split(': ')
             self.headers[key] = value
         print(f'Headers parsed: \n {self.headers}')
 
     def handle_request(self):
+        if self.path.endswith('/'):
+            try:
+                if self.path == '/':
+                    test_path = self.root / 'index.html'
+                else:
+                    test_path = self.root / self.path / 'index.html'
+                f = open(test_path, mode='rb')
+                self.path = test_path
+                f.close()
+            except FileNotFoundError:
+                try:
+                    test_path = self.root / self.path
+                    f = open(test_path, mode='rb')
+                    #  File shouldn't open if it ends with '/'
+                    self.send_error(404)
+                    f.close()
+                    return
+
+                except PermissionError:
+                    self.send_error(403)
+                    return
+        else:
+            self.path = self.root / self.path
+        print(f'Parsed path: {self.path}')
+
         if self.method == 'GET':
             self.do_GET()
         elif self.method == 'HEAD':
@@ -152,17 +188,21 @@ class AsyncHTTPRequestHandler(asynchat.async_chat):
         self.out_buffer += f'{keyword}: {value}\r\n'.encode()
 
     def send_error(self, code, message=None):
+        print(f'\nError {code}! \n')
         try:
-            short_msg, long_msg = self.responses[code]
+            short_msg, long_msg = responses[code]
         except KeyError:
             short_msg, long_msg = '???', '???'
-        if message is None:
+        if not message:
             message = short_msg
 
-        self.send_response(code, message)
-        self.send_header("Content-Type", "text/plain")
-        self.send_header("Connection", "close")
+        self.out_buffer = b''
+        self.add_response(code, message)
+        self.add_header("Content-Type", "text/plain")
+        self.add_header("Connection", "close")
         self.end_headers()
+        self.push_with_producer(simple_producer(self.out_buffer))
+        self.handle_close()
 
     def add_response(self, code: int, message=None):
         self.out_buffer += f'HTTP/1.1 {code} {responses[code]}\r\n'.encode()
@@ -177,7 +217,7 @@ class AsyncHTTPRequestHandler(asynchat.async_chat):
         curr_time = datetime.now().time()
         self.add_header('Server', 'async_http_py_Kondrashov')
         self.add_header('Date', curr_time)
-        #self.send_header('Content-Length', self.content_length)
+        self.add_header('Content-Length', self.content_length)
         self.end_headers()
 
     def translate_path(self):
@@ -187,44 +227,34 @@ class AsyncHTTPRequestHandler(asynchat.async_chat):
 
     def do_GET(self):
         try:
-            f = open('C:\\cs102\\homework07\\index.html', 'rb')
+            f = open(self.path, 'rb')
         except FileNotFoundError:
-            self.send_error()
-        #print(f)
-        #print(f.read())
-        #f_f = f.readline()
-        #print(f_f)
-        #self.content_length = len(f_f)
-        #print(self.content_length)
+            self.send_error(404)
+            return
+        data = f.read()
+        self.content_length = len(data)
         self.add_response(200)
         self.add_head()
-        self.out_buffer += f.read()
+        self.out_buffer += data
         f.close()
-        #  p = Path('.')
-        #pp = self.path
         self.push_with_producer(simple_producer(self.out_buffer))
-        #self.push('<html>Directory index file</html>'.encode())
-        print('pushed')
         self.handle_close()
-        print('GET is done')
+        print('GET completed \n')
 
     def do_HEAD(self):
-        self.send_response(200)
-        self.send_head()
+        try:
+            f = open(self.path, 'rb')
+        except FileNotFoundError:
+            self.send_error(404)
+            return
+        data = f.read()
+        self.content_length = len(data)
+        self.add_response(200)
+        self.add_head()
+        f.close()
+        self.push_with_producer(simple_producer(self.out_buffer))
         self.handle_close()
-        print('HEAD is done')
-
-
-responses = {
-    200: ('OK', 'Request fulfilled, document follows'),
-    400: ('Bad Request',
-          'Bad request syntax or unsupported method'),
-    403: ('Forbidden',
-          'Request forbidden -- authorization will not help'),
-    404: ('Not Found', 'Nothing matches the given URI'),
-    405: ('Method Not Allowed',
-          'Specified method is invalid for this resource.'),
-}
+        print('Head completed \n')
 
 
 def parse_args():

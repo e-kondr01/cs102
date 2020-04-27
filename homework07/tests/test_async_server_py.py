@@ -116,7 +116,7 @@ class TestAsyncHTTPServer(unittest.TestCase):
     def test_post_method(self):
         """Post method forbidden"""
         r = requests.post(f"{self.host}:{self.port}/dir1/page.html")
-        self.assertIn(int(r.status_code), 405)
+        self.assertEqual(int(r.status_code), 405)
 
     def test_head_method(self):
         """Head method support"""

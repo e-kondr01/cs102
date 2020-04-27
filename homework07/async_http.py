@@ -10,6 +10,7 @@ import urllib
 import codecs
 
 from datetime import datetime
+from mimetypes import guess_type
 from pathlib import Path
 from time import strftime, gmtime
 
@@ -42,35 +43,11 @@ def url_normalize(path):
     return path
 
 
-'''
-class FileProducer(object):
-
-    def __init__(self, f, chunk_size=4096):
-        self.file = f
-        print(self.file)
-        self.chunk_size = chunk_size
-
-    def more(self):
-        if self.file:
-            print('yes')
-            f = open('C:\\cs102\\homework07\\index.html', 'rb')
-            data = f.read()
-            #data = self.file.read()
-            print(data)
-            if data:
-                return data
-            self.file = None
-        return ""
-'''
-
-
-class simple_producer:
+class simple_producer():
 
     def __init__(self, data, buffer_size=512):
         self.buffer_size = buffer_size
-        if data:
-            self.data = data
-            print(f'Data to send: {self.data}')
+        self.data = data
 
     def more(self):
         if len(self.data) > self.buffer_size:
@@ -79,7 +56,7 @@ class simple_producer:
             return result
         else:
             result = self.data
-            self.data = ''
+            self.data = b''
             return result
 
 
@@ -113,6 +90,47 @@ class AsyncHTTPRequestHandler(asynchat.async_chat):
         self.reading_headers = True
         self.handling = False
         self.headers = {}
+        self.method = ''
+
+    def fixed_push_with_producer(self, producer):
+        self.producer_fifo.append(producer)
+        self.fixed_initiate_send()
+
+    def fixed_initiate_send(self):
+        while self.producer_fifo and self.connected:
+            first = self.producer_fifo[0]
+            if not first:
+                del self.producer_fifo[0]
+                if first is None:
+                    self.handle_close()
+                    return
+
+            obs = self.ac_out_buffer_size
+            try:
+                data = first[:obs]
+            except TypeError:
+                data = first.more()
+                if data:
+                    self.producer_fifo.appendleft(data)
+                else:
+                    del self.producer_fifo[0]
+                continue
+
+            if isinstance(data, str) and self.use_encoding:
+                data = bytes(data, self.encoding)
+
+            try:
+                num_sent = self.send(data)
+            except OSError:
+                self.handle_error()
+                return
+
+            if num_sent:
+                if num_sent < len(data) or obs < len(first):
+                    self.producer_fifo[0] = first[num_sent:]
+                else:
+                    del self.producer_fifo[0]
+            #return
 
     def collect_incoming_data(self, data):
         #  log.debug(f"Incoming data: {data}")
@@ -128,12 +146,10 @@ class AsyncHTTPRequestHandler(asynchat.async_chat):
             self.parse_request()
         elif self.handling:
             self.parse_request()
-
+    
     def parse_request(self):
         self.root = Path.cwd() / 'homework07'
-        print('URL: ', self.url)
         parsed_url = self.translate_path()
-        print(parsed_url)
         self.path = parsed_url[2] if parsed_url[2] else '/'
         self.handle_request()
 
@@ -148,7 +164,6 @@ class AsyncHTTPRequestHandler(asynchat.async_chat):
         for header in headers_lst[1:]:
             key, value = header.split(': ')
             self.headers[key] = value
-        print(f'Headers parsed: \n {self.headers}')
 
     def handle_request(self):
         if self.path.endswith('/'):
@@ -157,13 +172,14 @@ class AsyncHTTPRequestHandler(asynchat.async_chat):
                     test_path = self.root / 'index.html'
                 else:
                     test_path = self.root / self.path / 'index.html'
-                f = open(test_path, mode='rb')
+                f = open(test_path)
                 self.path = test_path
                 f.close()
+
             except FileNotFoundError:
                 try:
                     test_path = self.root / self.path
-                    f = open(test_path, mode='rb')
+                    f = open(test_path)
                     #  File shouldn't open if it ends with '/'
                     self.send_error(404)
                     f.close()
@@ -172,8 +188,24 @@ class AsyncHTTPRequestHandler(asynchat.async_chat):
                 except PermissionError:
                     self.send_error(403)
                     return
+
+                except FileNotFoundError:
+                    self.send_error(404)
+                    return
         else:
             self.path = self.root / self.path
+            try:
+                f = open(self.path)
+                f.close()
+
+            except FileNotFoundError:
+                self.send_error(404)
+                return
+
+            except PermissionError:
+                self.send_error(403)
+                return
+
         print(f'Parsed path: {self.path}')
 
         if self.method == 'GET':
@@ -188,7 +220,7 @@ class AsyncHTTPRequestHandler(asynchat.async_chat):
         self.out_buffer += f'{keyword}: {value}\r\n'.encode()
 
     def send_error(self, code, message=None):
-        print(f'\nError {code}! \n')
+        print(f'Error {code}')
         try:
             short_msg, long_msg = responses[code]
         except KeyError:
@@ -208,51 +240,43 @@ class AsyncHTTPRequestHandler(asynchat.async_chat):
         self.out_buffer += f'HTTP/1.1 {code} {responses[code]}\r\n'.encode()
 
     def end_headers(self):
-        self.out_buffer += f'\r\n'.encode()
+        self.out_buffer += b'\r\n'
 
     def date_time_string(self):
         pass
 
-    def add_head(self):
+    def add_head(self, content_length, content_type):
         curr_time = datetime.now().time()
         self.add_header('Server', 'async_http_py_Kondrashov')
         self.add_header('Date', curr_time)
-        self.add_header('Content-Length', self.content_length)
+        self.add_header('Content-Length', content_length)
+        self.add_header('Content-Type', content_type)
         self.end_headers()
 
     def translate_path(self):
         url = url_normalize(self.url)
-        print(f'Normalized URL: {url}')
         return urllib.parse.urlparse(url)
 
     def do_GET(self):
-        try:
-            f = open(self.path, 'rb')
-        except FileNotFoundError:
-            self.send_error(404)
-            return
+        f = open(self.path, 'rb')
         data = f.read()
-        self.content_length = len(data)
         self.add_response(200)
-        self.add_head()
+        self.add_head(content_length=len(data),
+                      content_type=guess_type(self.path)[0])
         self.out_buffer += data
         f.close()
-        self.push_with_producer(simple_producer(self.out_buffer))
+        self.fixed_push_with_producer(simple_producer(self.out_buffer))
         self.handle_close()
         print('GET completed \n')
 
     def do_HEAD(self):
-        try:
-            f = open(self.path, 'rb')
-        except FileNotFoundError:
-            self.send_error(404)
-            return
+        f = open(self.path, 'rb')
         data = f.read()
-        self.content_length = len(data)
         self.add_response(200)
-        self.add_head()
+        self.add_head(content_length=len(data),
+                      content_type=guess_type(self.path)[0])
         f.close()
-        self.push_with_producer(simple_producer(self.out_buffer))
+        self.fixed_push_with_producer(simple_producer(self.out_buffer))
         self.handle_close()
         print('Head completed \n')
 

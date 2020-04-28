@@ -3,11 +3,8 @@ import asynchat
 import socket
 import multiprocessing
 import logging
-import mimetypes
-import os
 import argparse
 import urllib
-import codecs
 
 from datetime import datetime
 from mimetypes import guess_type
@@ -71,7 +68,7 @@ class AsyncServer(asyncore.dispatcher):
         print(f'Server started at: {host}:{port}')
 
     def handle_accepted(self, sock, addr):
-        #  log.debug(f"Incoming connection from {addr}")
+        log.debug(f"Incoming connection from {addr}")
         print(f"Incoming connection from {addr}")
         AsyncHTTPRequestHandler(sock)
 
@@ -87,8 +84,6 @@ class AsyncHTTPRequestHandler(asynchat.async_chat):
         self.out_buffer = b''
         self.set_terminator(b"\r\n\r\n")
 
-        self.reading_headers = True
-        self.handling = False
         self.headers = {}
         self.method = ''
 
@@ -133,45 +128,38 @@ class AsyncHTTPRequestHandler(asynchat.async_chat):
             #return
 
     def collect_incoming_data(self, data):
-        #  log.debug(f"Incoming data: {data}")
+        log.debug(f"Incoming data: {data}")
         print(f"Incoming data: {data}")
         self.in_buffer += data.decode('ASCII')
 
     def found_terminator(self):
-        if self.reading_headers:
-            self.reading_headers = False
-            self.parse_headers()
-            self.in_buffer = ''
-            self.handling = True
-            self.parse_request()
-        elif self.handling:
-            self.parse_request()
-    
-    def parse_request(self):
-        self.root = Path.cwd() / 'homework07'
-        parsed_url = self.translate_path()
-        self.path = parsed_url[2] if parsed_url[2] else '/'
+        self.parse_headers()
+        self.parse_request()
+        self.handle_path()
         self.handle_request()
 
     def parse_headers(self):
         unparsed = "".join(self.in_buffer)
-        headers_lst = unparsed.split('\r\n')
-        if 'HEAD' in headers_lst[0]:
-            self.method = 'HEAD'
-        elif 'GET' in headers_lst[0]:
-            self.method = 'GET'
-        self.url = headers_lst[0][headers_lst[0].find(' ')+2:headers_lst[0].rfind(' ')]
-        for header in headers_lst[1:]:
+        self.headers_lst = unparsed.split('\r\n')
+        for header in self.headers_lst[1:]:
             key, value = header.split(': ')
             self.headers[key] = value
 
-    def handle_request(self):
-        if self.path.endswith('/'):
+    def parse_request(self):
+        if 'HEAD' in self.headers_lst[0]:
+            self.method = 'HEAD'
+        elif 'GET' in self.headers_lst[0]:
+            self.method = 'GET'
+        self.url = self.headers_lst[0][self.headers_lst[0].find(' ')+2:
+                                       self.headers_lst[0].rfind(' ')]
+
+    def handle_path(self):
+        self.root = Path.cwd()
+        parsed_url = self.translate_path()
+        self.path = parsed_url[2]
+        if self.path.endswith('/') or not self.path:
             try:
-                if self.path == '/':
-                    test_path = self.root / 'index.html'
-                else:
-                    test_path = self.root / self.path / 'index.html'
+                test_path = self.root / self.path / 'index.html'
                 f = open(test_path)
                 self.path = test_path
                 f.close()
@@ -206,8 +194,9 @@ class AsyncHTTPRequestHandler(asynchat.async_chat):
                 self.send_error(403)
                 return
 
-        print(f'Parsed path: {self.path}')
+        print(f'Working path: {self.path}')
 
+    def handle_request(self):
         if self.method == 'GET':
             self.do_GET()
         elif self.method == 'HEAD':
@@ -241,9 +230,6 @@ class AsyncHTTPRequestHandler(asynchat.async_chat):
 
     def end_headers(self):
         self.out_buffer += b'\r\n'
-
-    def date_time_string(self):
-        pass
 
     def add_head(self, content_length, content_type):
         curr_time = datetime.now().time()
@@ -300,11 +286,11 @@ def run(args):
 if __name__ == "__main__":
     args = parse_args()
 
-    ''' logging.basicConfig(
+    logging.basicConfig(
         filename=args.logfile,
         level=getattr(logging, args.loglevel.upper()),
         format="%(name)s: %(process)d %(message)s")
-    log = logging.getLogger(__name__) '''
+    log = logging.getLogger(__name__)
 
     DOCUMENT_ROOT = args.document_root
     for _ in range(args.nworkers):

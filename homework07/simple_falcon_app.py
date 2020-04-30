@@ -15,5 +15,5 @@ class QuoteResource:
         pass
 
 
-api = falcon.API()
-api.add_route('/quote', QuoteResource())
+app = falcon.API()
+app.add_route('/quote', QuoteResource())

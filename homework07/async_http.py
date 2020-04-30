@@ -68,7 +68,7 @@ class AsyncServer(asyncore.dispatcher):
         print(f'Server started at: {host}:{port}')
 
     def handle_accepted(self, sock, addr):
-        log.debug(f"Incoming connection from {addr}")
+        #  log.debug(f"Incoming connection from {addr}")
         print(f"Incoming connection from {addr}")
         AsyncHTTPRequestHandler(sock)
 
@@ -128,7 +128,7 @@ class AsyncHTTPRequestHandler(asynchat.async_chat):
             #return
 
     def collect_incoming_data(self, data):
-        log.debug(f"Incoming data: {data}")
+        #  log.debug(f"Incoming data: {data}")
         print(f"Incoming data: {data}")
         self.in_buffer += data.decode('ASCII')
 
@@ -232,7 +232,7 @@ class AsyncHTTPRequestHandler(asynchat.async_chat):
         self.out_buffer += b'\r\n'
 
     def add_head(self, content_length, content_type):
-        curr_time = datetime.now().time()
+        curr_time = str(datetime.today()
         self.add_header('Server', 'async_http_py_Kondrashov')
         self.add_header('Date', curr_time)
         self.add_header('Content-Length', content_length)

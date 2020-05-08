@@ -232,7 +232,7 @@ class AsyncHTTPRequestHandler(asynchat.async_chat):
         self.out_buffer += b'\r\n'
 
     def add_head(self, content_length, content_type):
-        curr_time = str(datetime.today()
+        curr_time = str(datetime.today())
         self.add_header('Server', 'async_http_py_Kondrashov')
         self.add_header('Date', curr_time)
         self.add_header('Content-Length', content_length)

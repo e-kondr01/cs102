@@ -5,6 +5,7 @@ import multiprocessing
 import logging
 import argparse
 import urllib
+import os
 
 from datetime import datetime
 from mimetypes import guess_type
@@ -136,7 +137,8 @@ class AsyncHTTPRequestHandler(asynchat.async_chat):
         self.parse_headers()
         self.parse_request()
         self.handle_path()
-        self.handle_request()
+        if self.method != 'error':
+            self.handle_request()
 
     def parse_headers(self):
         unparsed = "".join(self.in_buffer)
@@ -154,7 +156,7 @@ class AsyncHTTPRequestHandler(asynchat.async_chat):
                                        self.headers_lst[0].rfind(' ')]
 
     def handle_path(self):
-        self.root = Path.cwd()
+        self.root = Path(os.path.dirname(os.path.realpath(__file__)))
         parsed_url = self.translate_path()
         self.path = parsed_url[2]
         if self.path.endswith('/') or not self.path:
@@ -210,6 +212,7 @@ class AsyncHTTPRequestHandler(asynchat.async_chat):
 
     def send_error(self, code, message=None):
         print(f'Error {code}')
+        self.method = 'error'
         try:
             short_msg, long_msg = responses[code]
         except KeyError:

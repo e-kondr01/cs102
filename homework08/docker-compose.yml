@@ -1,0 +1,35 @@
+version: '3'
+services:
+    nginx:
+        image: nginx:latest
+        container_name: ng01
+        ports:
+            - "8000:8000"
+        volumes:
+            - ./deploy/nginx:/etc/nginx/conf.d
+            - ./static:/static
+        depends_on:
+            - web
+    web:
+        build: .
+        container_name: dg01
+        volumes:
+            - ./src:/src
+            - ./deploy/uwsgi:/usr/local/etc/
+            - ./static:/static
+        command: bash -c "sleep 3 && python /src/manage.py makemigrations && python /src/manage.py migrate && python /src/manage.py collectstatic --noinput && uwsgi --ini /usr/local/etc/elevennote.ini"
+        depends_on:
+            - db
+        expose:
+            - "8000"
+    db:
+        image: postgres:latest
+        container_name: pg01
+        environment:
+            - POSTGRES_DB=postgres 
+            - POSTGRES_USER=postgres
+            - POSTGRES_PASSWORD=1234
+        volumes:
+            - db-data:/var/lib/postgresql/data
+volumes:
+  db-data:

@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+{% if request.GET.msg %}
+
+<div class="row">
+  <div class=" alert alert-success" role="alert">
+    {{ request.GET.msg }}
+  </div>
+</div>
+
+{% endif %}
+
+{% if request.GET.filter_title %}
+    <div class="row">
+      <h4>Search results for: {{request.GET.filter_title}}</h4>
+    </div>
+
+{% elif request.GET.filter_tag %}
+    <div class="row">
+        <h4>Notes with tag: {{request.GET.filter_tag}}</h4>
+    </div>
+{% endif %}
+
+<div class="row">
+    <form action="{% url 'notes:index' %}"class="form-inline" method="GET">
+      <input name="filter_title" class="form-control" type="search" placeholder="Search by note's title" aria-label="Search">
+      <button class="btn btn-outline-success" type="submit">Search</button>
+    </form>
+</div>
+
+
+{% if latest_note_list %}
+    <ul>
+    {% for note in latest_note_list %}
+    <p>
+    <div class='row'>
+        {% for tag in note.tags_as_list %}
+        <form action="{% url 'notes:index' %}" method="GET">
+            <input class="btn btn-outline-dark" name="filter_tag" type="submit" value="{{tag}}"/>
+        </form>
+        {% endfor %}
+    </div>
+    
+    <li><p><a href="{% url 'notes:detail' note.id %}">{{ note.title }}</a></p></li>
+        <a href="{% url 'notes:update' note.id %}">Edit</a><br/>
+        <p>{{ note.body | safe }}</p>
+    </p>
+    <hr />
+    {% endfor %}
+    </ul>
+{% else %}
+    <p>No notes are available.</p>
+{% endif %}
+
+{% if is_paginated %}
+<div class="pagination">
+   <span class="step-links">
+       {% if page_obj.has_previous %}
+           <a href="?page={{ page_obj.previous_page_number }}">previous</a>
+       {% endif %}
+
+       <span class="current">
+           Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}.
+       </span>
+
+       {% if page_obj.has_next %}
+          <a href="?page={{ page_obj.next_page_number }}">next</a>
+       {% endif %}
+  </span>
+</div>
+{% endif %}
+
+<a href="{% url 'notes:create' %}">Create a new note</a>
+
+{% endblock %}

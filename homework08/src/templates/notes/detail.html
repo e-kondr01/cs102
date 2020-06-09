@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+
+
+<h5>{{ note.tags }}</h5>
+
+<h1>{{ note.title }}</h1>
+
+<p>{{ note.body | safe }} </p>
+
+<footer>
+Users with access to this note:
+    {{ note.access }}
+</footer>
+{% endblock %}

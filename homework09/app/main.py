@@ -1,9 +1,9 @@
 import hashlib
-import sys
+import io
 import os
 import pathlib
+import sys
 import zlib
-import io
 
 
 def object_read(sha):
@@ -31,43 +31,48 @@ def ls_tree(sha):
         print(item.decode())
 
 
-def parse_tree_entry(raw, start):
-    space = raw.find(b' ', start)
-    mode = raw[start:space]
-    null = raw.find(b'\x00', space)
-    item = raw[space+1, null]
-    return null+39, item
-
-
 def parse_tree(raw):
     pos = 0
     tree_items = []
     while pos < len(raw):
-        pos, data = parse_tree_entry(raw, pos)
-        tree_items.append(data)
+        space = raw.find(b' ', pos)
+        null = raw.find(b'\x00', space)
+        item = raw[space+1: null]
+        tree_items.append(item)
+        pos = null + 41
     return tree_items
 
 
-def write_tree(delimeter=''):
+def write_tree(directory='.', save=True):
     tree_entries = []
     exclude = ['.git']
-    for currentpath, folders, files in os.walk('.', topdown=True):
-        folders[:] = [f for f in folders if f not in exclude]
-        for file in files:
-            path = pathlib.Path(currentpath) / file
-
-            kt = os.stat(path)
-            filename = path.name
-            mode_path = f'{filename}'.encode()
-            sha1 = object_sha(path, open(mode='rb'))
-            tree_entry = mode_path + b'\x00' + sha1.encode()
-            tree_entries.append(tree_entry)
-
+    raw_entries = []
+    for currentpath, folders, files in os.walk(directory, topdown=True):
+        raw_entries.extend(folders)
+        raw_entries.extend(files)
+        for f in raw_entries:
+            if f in exclude:
+                raw_entries.remove(f)
+        break
+    for f in raw_entries:
+        path = pathlib.Path(currentpath) / f
+        filename = path.name.encode()
+        try:
+            sha1 = object_sha(path.open(mode='rb')).encode()
+            f_mode = oct(os.stat(path)[0])[2:].encode()
+        except PermissionError:
+            f_mode = b'040000'
+            sha1 = write_tree(path, save=False).encode()
+        tree_entry = f_mode + b' ' + filename + b'\x00' + sha1
+        tree_entries.append(tree_entry)
     print(tree_entries)
-    return
     obj = io.BytesIO(b''.join(tree_entries))
-    sha = hash_object(obj, b'tree')
-    print(sha)
+    if save:
+        sha = hash_object(obj, obj_type=b'tree')
+        print(sha)
+    else:
+        sha = object_sha(obj)
+        return sha
 
 
 def cat_file(sha):
@@ -75,8 +80,10 @@ def cat_file(sha):
     print(data.decode())
 
 
-def object_sha():
-    pass
+def object_sha(filename):
+    data = filename.read()
+    sha = hashlib.sha1(data).hexdigest()
+    return sha
 
 
 def hash_object(filename, obj_type=b'blob'):
@@ -94,6 +101,10 @@ def hash_object(filename, obj_type=b'blob'):
 
 def main():
     command = sys.argv[1]
+    try:
+        option = sys.argv[2]
+    except IndexError:
+        pass
     if command == 'init':
         os.mkdir('.git')
         os.mkdir('.git/objects')
@@ -101,21 +112,21 @@ def main():
         with open('.git/HEAD', 'w') as f:
             f.write('ref: refs/heads/master\n')
         print('Initialized git repository')
-    elif command == 'cat-file':
+    elif command == 'cat-file' and option == '-p':
         sha = sys.argv[3]
         cat_file(sha)
-    elif command == 'hash-object':
+    elif command == 'hash-object' and option == '-w':
         filename = sys.argv[3]
         with open(filename, mode='rb') as f:
             sha = hash_object(f)
         print(sha)
-    elif command == 'ls-tree':
+    elif command == 'ls-tree' and option == '--name-only':
         sha = sys.argv[3]
         ls_tree(sha)
     elif command == 'write-tree':
         write_tree()
     else:
-        raise RuntimeError('Unknown command')
+        print('Unknown command or invalid option')
 
 
 if __name__ == '__main__':

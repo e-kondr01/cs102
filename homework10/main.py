@@ -1,16 +1,23 @@
+import numpy
+import random
+
 from pools import ProcessPool
 
 
 def heavy_computation(data_chunk):
-    print(sum(data_chunk)**2)
+    kernel = numpy.ndarray(shape=(2000, 2000))
+    kernel[:] = 10
+    res = sum(sum(data_chunk * kernel)) ** 2
+    s = 'Data:\n' + str(data_chunk) + '\n' + 'Result:\n' + str(res)
+    print(s)
 
 
 def get_big_data():
     big_data = []
-    big_data.append([i for i in range(1000)])
-    big_data.append([i for i in range(1001)])
-    big_data.append([i for i in range(1002)])
-    big_data.append([i for i in range(1003)])
+    for _ in range(20):
+        array = numpy.ndarray(shape=(2000, 2000))
+        array[:] = random.randint(1, 100)
+        big_data.append(array)
     return big_data
 
 

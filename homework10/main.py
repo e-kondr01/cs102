@@ -23,5 +23,5 @@ def get_big_data():
 
 if __name__ == '__main__':
     big_data = get_big_data()
-    pool = ProcessPool(min_workers=2, max_workers=10, mem_usage='1Gb')
+    pool = ProcessPool(min_workers=2, max_workers=10, mem_usage='0.5Gb')
     results = pool.map(heavy_computation, big_data)

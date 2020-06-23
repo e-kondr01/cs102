@@ -49,7 +49,6 @@ class ProcessPool:
         while self.running:
             max_memory_usage = 0
             current_memory_usage = 0
-            print(f'Process ids: {self.processes_ids}')
             for pid in self.processes_ids:
                 try:
                     p = psutil.Process(pid)
@@ -65,7 +64,8 @@ class ProcessPool:
             if not current_memory_usage and self.running:
                 self.running = False
                 print('seems like the programm ended...')
-            if current_memory_usage >= self.mem_usage:
+            #if current_memory_usage >= self.mem_usage:
+            if current_memory_usage >= 150000000:
                 p_with_most_memory.terminate()  # data?
                 print(f'{p_with_most_memory} had to be terminated')
             time.sleep(0.01)
